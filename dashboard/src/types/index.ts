@@ -1,6 +1,7 @@
 export type TimeRange = 'today' | 'yesterday' | '7days' | '30days';
 export type Category = 'all' | 'digital' | 'clothing' | 'food' | 'home' | 'beauty';
 export type DetailType = 'funnel' | 'product' | 'region' | null;
+export type ProductSortBy = 'gmv' | 'clicks' | 'conversionRate';
 
 export interface FunnelData {
   stage: string;
@@ -78,6 +79,7 @@ export interface DetailModalState {
 export interface DashboardStore {
   timeRange: TimeRange;
   category: Category;
+  productSortBy: ProductSortBy;
   kpiData: KPIData | null;
   funnelData: FunnelData[];
   hourlyData: HourlyData | null;
@@ -88,6 +90,7 @@ export interface DashboardStore {
   lastUpdate: number;
   setTimeRange: (t: TimeRange) => void;
   setCategory: (c: Category) => void;
+  setProductSortBy: (s: ProductSortBy) => void;
   fetchAllData: () => Promise<void>;
   openDetail: (type: DetailType, title: string, params: Record<string, any>) => void;
   closeDetail: () => void;

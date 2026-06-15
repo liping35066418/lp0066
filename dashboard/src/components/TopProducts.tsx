@@ -1,7 +1,22 @@
 import { useMemo } from 'react';
 import { Trophy, Crown, ShoppingBag, ChevronRight } from 'lucide-react';
 import { useDashboardStore } from '@/store/useDashboardStore';
-import type { TopProduct } from '@/types';
+import type { TopProduct, ProductSortBy, Category } from '@/types';
+
+const SORT_OPTIONS: { value: ProductSortBy; label: string; color: string }[] = [
+  { value: 'gmv', label: '成交额', color: 'neon-orange' },
+  { value: 'clicks', label: '点击量', color: 'neon-blue' },
+  { value: 'conversionRate', label: '转化率', color: 'neon-green' },
+];
+
+const CATEGORY_LABELS: Record<Category, string> = {
+  all: '全品类',
+  digital: '数码电子',
+  clothing: '服饰鞋包',
+  food: '食品生鲜',
+  home: '家居日用',
+  beauty: '美妆个护',
+};
 
 const RANK_STYLES: Record<number, { bg: string; text: string; icon: any }> = {
   1: { bg: 'bg-gradient-to-br from-yellow-400 to-amber-600', text: 'text-white', icon: Crown },
@@ -20,9 +35,8 @@ function formatMoney(n: number) {
   return '¥' + n.toLocaleString('zh-CN');
 }
 
-function ProductRow({ product, onClick }: { product: TopProduct; onClick: () => void }) {
-  const maxGmv = useDashboardStore.getState().topProducts[0]?.gmv || 1;
-  const progress = (product.gmv / maxGmv) * 100;
+function ProductRow({ product, onClick, sortBy, maxValue }: { product: TopProduct; onClick: () => void; sortBy: ProductSortBy; maxValue: number }) {
+  const progress = (product[sortBy] / maxValue) * 100;
   const style = RANK_STYLES[product.rank];
 
   return (
@@ -54,7 +68,9 @@ function ProductRow({ product, onClick }: { product: TopProduct; onClick: () => 
               width: `${progress}%`,
               background: product.rank <= 3
                 ? 'linear-gradient(90deg, #ffd93d, #ff6b35)'
-                : 'linear-gradient(90deg, #00d4ff, #8b5cf6)'
+                : sortBy === 'gmv' ? 'linear-gradient(90deg, #ff6b35, #ff9f43)'
+                : sortBy === 'clicks' ? 'linear-gradient(90deg, #00d4ff, #8b5cf6)'
+                : 'linear-gradient(90deg, #10b981, #34d399)'
             }}
           />
         </div>
@@ -67,10 +83,28 @@ function ProductRow({ product, onClick }: { product: TopProduct; onClick: () => 
       </div>
 
       <div className="text-right flex-shrink-0">
-        <div className="kpi-number text-lg text-neon-orange">
-          {formatMoney(product.gmv)}
-        </div>
-        <div className="text-xs text-white/40 font-display mt-0.5">GMV</div>
+        {sortBy === "gmv" ? (
+          <>
+            <div className="kpi-number text-lg text-neon-orange">
+              {formatMoney(product.gmv)}
+            </div>
+            <div className="text-xs text-white/40 font-display mt-0.5">GMV</div>
+          </>
+        ) : sortBy === "clicks" ? (
+          <>
+            <div className="kpi-number text-lg text-neon-blue">
+              {formatNumber(product.clicks)}
+            </div>
+            <div className="text-xs text-white/40 font-display mt-0.5">点击量</div>
+          </>
+        ) : (
+          <>
+            <div className="kpi-number text-lg text-neon-green">
+              {product.conversionRate}%
+            </div>
+            <div className="text-xs text-white/40 font-display mt-0.5">转化率</div>
+          </>
+        )}
       </div>
 
       <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-neon-blue group-hover:translate-x-0.5 transition-all" />
@@ -79,11 +113,46 @@ function ProductRow({ product, onClick }: { product: TopProduct; onClick: () => 
 }
 
 export function TopProducts() {
-  const { topProducts, openDetail } = useDashboardStore();
+  const { topProducts, productSortBy, setProductSortBy, category, openDetail } = useDashboardStore();
 
-  const totalGmv = useMemo(() => {
-    return topProducts.reduce((sum, p) => sum + p.gmv, 0);
-  }, [topProducts]);
+  const sortedProducts = useMemo(() => {
+    const sorted = [...topProducts].sort((a, b) => {
+      if (productSortBy === "conversionRate") {
+        return b.conversionRate - a.conversionRate;
+      }
+      if (productSortBy === "clicks") {
+        return b.clicks - a.clicks;
+      }
+      return b.gmv - a.gmv;
+    });
+    return sorted.map((p, index) => ({ ...p, rank: index + 1 }));
+  }, [topProducts, productSortBy]);
+
+  const maxValue = sortedProducts[0]?.[productSortBy] || 1;
+
+  const totalValue = useMemo(() => {
+    if (productSortBy === "gmv") {
+      const total = sortedProducts.reduce((sum, p) => sum + p.gmv, 0);
+      return formatMoney(total);
+    }
+    if (productSortBy === "clicks") {
+      const total = sortedProducts.reduce((sum, p) => sum + p.clicks, 0);
+      return formatNumber(total);
+    }
+    if (sortedProducts.length === 0) return "0.00";
+    const avg = sortedProducts.reduce((sum, p) => sum + p.conversionRate, 0) / sortedProducts.length;
+    return avg.toFixed(2);
+  }, [sortedProducts, productSortBy]);
+
+  const getSubtitle = () => {
+    if (productSortBy === "gmv") {
+      return `TOP 10 · 总GMV ${totalValue}`;
+    }
+    if (productSortBy === "clicks") {
+      return `TOP 10 · 总点击 ${totalValue}`;
+    }
+    return `TOP 10 · 平均转化 ${totalValue}%`;
+  };
 
   if (topProducts.length === 0) {
     return (
@@ -106,23 +175,40 @@ export function TopProducts() {
           <div>
             <h3 className="tech-title text-base">热门商品TOP榜</h3>
             <p className="text-xs text-white/45 font-display mt-0.5">
-              TOP 10 · 总GMV {formatMoney(totalGmv)}
+              {getSubtitle()}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="px-2 py-1 rounded-md bg-neon-orange/10 text-neon-orange border border-neon-orange/20 font-display">
-            按GMV排序
-          </span>
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-glass-light border border-white/10">
+          {SORT_OPTIONS.map(opt => {
+            const isActive = productSortBy === opt.value;
+            const colorClasses: Record<string, string> = {
+              "neon-orange": "bg-neon-orange/15 text-neon-orange border border-neon-orange/30",
+              "neon-blue": "bg-neon-blue/15 text-neon-blue border border-neon-blue/30",
+              "neon-green": "bg-neon-green/15 text-neon-green border border-neon-green/30",
+            };
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setProductSortBy(opt.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-display transition-all duration-300
+                  ${isActive ? colorClasses[opt.color] : "text-white/50 hover:text-white/80"}`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-custom pr-1 -mr-1">
-        {topProducts.map(product => (
+        {sortedProducts.map(product => (
           <ProductRow
             key={product.id}
             product={product}
-            onClick={() => openDetail('product', `${product.name} - 订单明细`, { productId: product.id })}
+            sortBy={productSortBy}
+            maxValue={maxValue}
+            onClick={() => openDetail('product', `${product.name} - ${CATEGORY_LABELS[category]}`, { productId: product.id })}
           />
         ))}
       </div>
@@ -131,15 +217,15 @@ export function TopProducts() {
         <div className="flex items-center gap-4 text-xs font-display">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-neon-blue" />
-            <span className="text-white/50">点击量</span>
+            <span className={productSortBy === "clicks" ? "text-neon-blue font-bold" : "text-white/50"}>点击量</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-neon-green" />
-            <span className="text-white/50">转化率</span>
+            <span className={productSortBy === "conversionRate" ? "text-neon-green font-bold" : "text-white/50"}>转化率</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-neon-orange" />
-            <span className="text-white/50">GMV</span>
+            <span className={productSortBy === "gmv" ? "text-neon-orange font-bold" : "text-white/50"}>GMV</span>
           </span>
         </div>
         <span className="text-xs text-white/35 font-display">

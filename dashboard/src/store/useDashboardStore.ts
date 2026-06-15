@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { apiService } from '@/services/api';
-import type { DashboardStore, TimeRange, Category, DetailType, DetailResponse } from '@/types';
+import type { DashboardStore, TimeRange, Category, DetailType, DetailResponse, ProductSortBy } from '@/types';
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
   timeRange: 'today',
   category: 'all',
+  productSortBy: 'gmv',
   kpiData: null,
   funnelData: [],
   hourlyData: null,
@@ -27,6 +28,10 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   setCategory: (c: Category) => {
     set({ category: c });
     get().fetchAllData();
+  },
+
+  setProductSortBy: (s: ProductSortBy) => {
+    set({ productSortBy: s });
   },
 
   fetchAllData: async () => {
