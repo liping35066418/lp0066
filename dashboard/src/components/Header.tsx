@@ -45,8 +45,8 @@ export function Header() {
   };
 
   return (
-    <header className="relative z-10 px-6 py-4">
-      <div className="glass-card corner-decor px-6 py-4">
+    <header className="relative z-50 px-6 py-4">
+      <div className="glass-card corner-decor px-6 py-4" style={{ overflow: "visible" }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
